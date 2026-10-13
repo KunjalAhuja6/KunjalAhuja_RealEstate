@@ -1272,6 +1272,27 @@ button {
   gap: 16px;
 }
 
+.bench-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.last-run-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.history-select {
+  width: auto;
+  min-width: 170px;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
 .bench-overview-grid, .tech-stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

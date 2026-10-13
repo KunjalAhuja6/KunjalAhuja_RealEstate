@@ -1,5 +1,7 @@
+import json
 import os
 import time
+from datetime import datetime
 from typing import Dict, Any, List, Optional
 import numpy as np
 from pydantic import BaseModel, Field
@@ -23,6 +25,10 @@ from src.utils.llm_client import llm_client
 from src.agents.orchestrator import orchestrator
 
 logger = get_logger("EvaluationService")
+
+# Module constants for benchmark history persistence
+EVAL_HISTORY_PATH = settings.DATA_DIR / "eval_history.json"
+MAX_EVAL_HISTORY = 3
 
 # Read deepeval version dynamically; never hardcode it.
 _DEEPEVAL_VERSION = getattr(_deepeval_module, "__version__", "unknown")
@@ -493,3 +499,51 @@ class DeepEvalRunner:
 
 
 evaluation_runner = DeepEvalRunner()
+
+
+def load_eval_history() -> List[Dict[str, Any]]:
+    """
+    Returns a list of saved benchmark runs, newest first.
+    Returns [] if the file is missing, empty, or contains invalid JSON (never raises).
+    """
+    try:
+        path = EVAL_HISTORY_PATH
+        if not path.exists():
+            return []
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+            if not content:
+                return []
+            data = json.loads(content)
+            if isinstance(data, list):
+                return data
+            return []
+    except Exception as e:
+        logger.warning(f"Failed to load evaluation history from {EVAL_HISTORY_PATH}: {e}")
+        return []
+
+
+def save_eval_run(result: dict) -> dict:
+    """
+    Adds a run_at ISO timestamp (seconds precision) to a copy of result,
+    prepends it to existing history, keeps only the newest MAX_EVAL_HISTORY entries,
+    writes the file as indented JSON (creates parent directory if needed),
+    and returns the timestamped result.
+    If writing fails, logs a warning and still returns the timestamped result.
+    """
+    result_copy = dict(result) if isinstance(result, dict) else {}
+    result_copy["run_at"] = datetime.now().isoformat(timespec="seconds")
+
+    try:
+        current_history = load_eval_history()
+        new_history = [result_copy] + [h for h in current_history if isinstance(h, dict)]
+        new_history = new_history[:MAX_EVAL_HISTORY]
+
+        path = EVAL_HISTORY_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(new_history, f, indent=2)
+    except Exception as e:
+        logger.warning(f"Failed to save evaluation run to {EVAL_HISTORY_PATH}: {e}")
+
+    return result_copy

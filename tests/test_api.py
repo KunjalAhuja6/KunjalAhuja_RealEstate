@@ -109,3 +109,38 @@ def test_feedback_api():
     assert get_res.status_code == 200
     summary = get_res.json()
     assert summary["total_feedback_count"] >= 1
+
+def test_evaluation_history_api(tmp_path, monkeypatch):
+    import src.services.evaluation_service as eval_srv
+    test_hist_path = tmp_path / "eval_history.json"
+    monkeypatch.setattr(eval_srv, "EVAL_HISTORY_PATH", test_hist_path)
+
+    # 1. When history file does not exist, returns empty list
+    res = client.get("/api/v1/evaluation/history")
+    assert res.status_code == 200
+    assert res.json() == []
+
+    # 2. Save runs directly through save_eval_run and test history capping and timestamps
+    sample_run1 = {"benchmark_status": "PASSED", "execution_time_seconds": 1.2}
+    sample_run2 = {"benchmark_status": "PASSED", "execution_time_seconds": 1.5}
+    sample_run3 = {"benchmark_status": "NOT_EVALUATED", "execution_time_seconds": 0.8}
+    sample_run4 = {"benchmark_status": "PASSED", "execution_time_seconds": 2.1}
+
+    saved1 = eval_srv.save_eval_run(sample_run1)
+    assert "run_at" in saved1
+    assert saved1["execution_time_seconds"] == 1.2
+
+    eval_srv.save_eval_run(sample_run2)
+    eval_srv.save_eval_run(sample_run3)
+    eval_srv.save_eval_run(sample_run4)
+
+    # File should have max 3 entries, newest first (run 4, 3, 2)
+    res2 = client.get("/api/v1/evaluation/history")
+    assert res2.status_code == 200
+    history = res2.json()
+    assert len(history) == 3
+    assert history[0]["execution_time_seconds"] == 2.1
+    assert history[1]["execution_time_seconds"] == 0.8
+    assert history[2]["execution_time_seconds"] == 1.5
+    for item in history:
+        assert "run_at" in item

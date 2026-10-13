@@ -13,7 +13,7 @@ from src.agents.orchestrator import orchestrator, ValuationDossier
 from src.services.ml_prediction import price_predictor
 from src.services.feature_impact import feature_impact_service
 from src.services.feedback_service import feedback_service, FeedbackSubmission
-from src.services.evaluation_service import evaluation_runner
+from src.services.evaluation_service import evaluation_runner, load_eval_history, save_eval_run
 
 router = APIRouter(prefix="/api/v1", tags=["Real Estate Valuation Assistant"])
 
@@ -272,7 +272,14 @@ def run_evaluation_benchmark():
     """
     Requirement 2.1: DeepEval for recommendation quality evaluation.
     """
-    return evaluation_runner.run_benchmark()
+    return save_eval_run(evaluation_runner.run_benchmark())
+
+@router.get("/evaluation/history")
+def get_evaluation_history():
+    """
+    Returns the last 3 DeepEval evaluation runs, newest first.
+    """
+    return load_eval_history()
 
 @router.get("/dataset/info")
 def get_dataset_info():

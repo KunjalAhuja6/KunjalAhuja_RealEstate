@@ -165,4 +165,6 @@ export const api = {
     call("/feedback/summary", null, "GET"),
   runEvaluation: () =>
     call("/evaluation/run", null, "GET"),
+  evaluationHistory: () =>
+    call("/evaluation/history", null, "GET"),
 };

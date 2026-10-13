@@ -1,149 +1,194 @@
 # System Design Document: AI-Powered Real Estate Property Valuation Assistant
 
-## 1. Executive Summary & Problem Statement
-Real estate professionals regularly handle recurring workflows involving property valuation, comparable market analysis (CMA), physical condition adjustment, and market volatility risk. Historical property databases contain thousands of transactional records with rich physical, geographical, and economic features. However, traditional manual search through static databases is slow, lacks semantic context, and struggles to quantify multi-factor property comparability.
+**Author / Presenter**: Kunjal Ahuja  
+**Domain**: Real Estate & PropTech Valuation Intelligence  
+**Capstone**: Prodapt AI/ML Engineering Capstone  
 
-This solution delivers an end-to-end autonomous, agentic microservice and user interface that enables real estate professionals to enter natural language queries or structured property attributes to retrieve prioritized historical comparable properties, predict fair market value via supervised ML regressions, assess structural and market risks, and audit the results through an independent LLM-as-Judge appraisal auditor.
+---
+
+## 1. Executive Summary & Problem Statement
+
+Real estate professionals, underwriters, and appraisers regularly perform recurring workflows involving comparative market analysis (CMA), physical condition and age adjustments, and market volatility risk assessments. Historical property databases contain thousands of transactional records with complex physical, geographic, and economic features. However, traditional appraisal relies on manual searching across static MLS records, subjective condition adjustments, and unquantified risk adjustments.
+
+This system delivers an end-to-end autonomous, multi-agent valuation platform and user interface that enables real estate agents to enter structured property parameters or natural language queries to:
+1. Retrieve prioritized historical comparable sales using true hybrid search (dense cosine embeddings + lexical TF-IDF keyword scoring) with automated neighborhood widening.
+2. Predict fair market value using a supervised Gradient Boosting Regressor ($R^2 = 0.9198$, $\text{RMSE} = \$25,361.84$, $\text{MAPE} = 8.87\%$) with 90% empirical prediction intervals.
+3. Assess structural, condition, liquidity, and market volatility risks via a composite 0–100 index.
+4. Dynamically reconcile valuation signals using a `comp_fit` weighting formula.
+5. Audit valuations through an independent LLM-as-Judge appraisal auditor.
+6. Continuously adjust for systematic pricing bias via an uncalibrated feedback loop.
 
 ---
 
 ## 2. High-Level Architecture & End-to-End Data Flow
 
 ```
-[Historical Ames Dataset (OpenML 43926)]
-               │
-               ▼
-   [Data Preprocessing & Standardizer]
-         (Standardize 15 Key Fields, 2,930 Records)
-               │
-               ├──────────────────────────────────────────┐
-               ▼                                          ▼
-   [Dense Vector Index (all-MiniLM-L6-v2)]    [Supervised ML Regressor (GradientBoosting)]
-   [Lexical Index (BM25 / TF-IDF)]            (R² = 0.9031, MAPE = 8.46%)
-               │                                          │
-               └────────────────────┬─────────────────────┘
-                                    │
-                              [User Request]
-                                    │
-                                    ▼
-                      [Input Guardrail Validator]
-                     (Bounds, Injection, Relevance)
-                                    │
-                                    ▼
-                    [Autonomous Multi-Agent Core]
-   ┌───────────────────────────────────────────────────────────────┐
-   │ 1. Hybrid Retriever + Prioritizer (Top Comps + Comp Index)    │
-   │ 2. Classification Agent (Market Tier, Typology, Condition)    │
-   │ 3. ML Price Predictor (Point Estimate + 90% Confidence Bounds)│
-   │ 4. Valuation Agent (Comp Median + PPSF Weighted FMV)          │
-   │ 5. Risk Assessment Agent (Age, Condition Gap, Volatility)     │
-   │ 6. Feature & Location Impact (Neighborhood Premium & What-If) │
-   │ 7. Synthesis Engine (Reconciled Fair Market Value)            │
-   │ 8. LLM-as-Judge Agent (Independent Appraisal Audit & Verdict) │
-   └───────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-                       [Valuation Dossier Output]
-                                    │
-               ┌────────────────────┴─────────────────────┐
-               ▼                                          ▼
-     [FastAPI REST Endpoints]                  [Streamlit User Interface]
-               │                                          │
-               ▼                                          ▼
-     [Continuous Feedback Loop]                [DeepEval Benchmark Suite]
-   (Appraiser Ratings & Calibration)        (Faithfulness, Relevancy, Precision)
+[Ames Housing Dataset (10,000 Records: 2,930 Real + 7,070 Synthetic)]
+                               │
+                               ▼
+              [Data Pipeline & Standardizer]
+         (15 Standardized Key Fields, 1-10 Quality Scale)
+                               │
+          ┌────────────────────┴─────────────────────┐
+          ▼                                          ▼
+[Dense Vector Embeddings]                  [Supervised ML Regressor]
+(all-MiniLM-L6-v2, 384-d, .npy)            (GradientBoostingRegressor)
+(In-Memory NumPy Cosine Index)             (Real-Only Test R² = 0.9198)
+          │                                          │
+          └────────────────────┬─────────────────────┘
+                               │
+                         [User Request]
+                               │
+                               ▼
+                  [Input Guardrail Validator]
+             (14 Fields, Physical Bounds, Injection)
+                               │
+                               ▼
+               [Autonomous Multi-Agent Workflow]
+ ┌───────────────────────────────────────────────────────────────┐
+ │ 1. Classification Agent (Market Tier, Typology, Demographic)  │
+ │ 2. Hybrid Retriever (TF-IDF + Dense Cosine, alpha = 0.55)    │
+ │    - Real Comps Filter (Excludes synthetic rows by default)   │
+ │    - Dynamic Neighborhood Widening (< 3 comps in target area) │
+ │ 3. Comparable Prioritizer (50% Hybrid + 50% Comparability)    │
+ │ 4. Supervised ML Predictor (Point Estimate + 90% Interval)    │
+ │ 5. Valuation Agent (Comp-Adjusted Median & Size-Weighted FMV) │
+ │ 6. Property Risk Agent (0-100 Score: Physical, Gap, Market)   │
+ │ 7. Feature Impact Service (Location Premium & What-If Engine) │
+ │ 8. Dynamic Reconciliation (comp_fit Weighting + Calibration)  │
+ │ 9. LLM-as-Judge Auditor (Multi-Criterion Audit & Verdict)     │
+ └───────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+                   [Valuation Dossier Payload]
+                               │
+          ┌────────────────────┴─────────────────────┐
+          ▼                                          ▼
+[FastAPI REST Layer]                      [React 18 + Vite Frontend]
+(16 Endpoints, /docs OpenAPI)             (7 Dedicated Tabs, Light/Dark)
+          │                                          │
+          ▼                                          ▼
+[Continuous Feedback Store]               [DeepEval Benchmark Suite]
+(Uncalibrated Bias Calibration)           (Faithfulness, Relevancy, Precision)
 ```
 
 ---
 
 ## 3. Technology Selection & Architectural Trade-offs
 
-| Component | Selected Technology | Alternative Considered | Rationale & Trade-offs |
+| Component | Selected Technology | Alternative Considered | Rationale & Architectural Trade-offs |
 |---|---|---|---|
-| **Programming Language** | Python 3.13 | Go / TypeScript | Native support for scikit-learn, PyTorch, sentence-transformers, DeepEval, and FastAPI. |
-| **Backend Framework** | FastAPI + Uvicorn | Flask / Django | Asynchronous high-throughput, native Pydantic validation, auto-generated OpenAPI docs. |
-| **Frontend Framework** | Streamlit | React / Next.js | Rapid Python-native dashboarding with built-in state management and interactive widgets. |
-| **Embedding Model** | `all-MiniLM-L6-v2` | OpenAI `text-embedding-3-small` | 384-dimensional dense embeddings with local inference; zero recurring API costs or network latency. |
-| **Vector Store** | In-Memory Normalized Dense Index | Pinecone / Milvus / Chroma | In-memory numpy cosine similarity with cached `.npy` vectors offers instant startup and zero external DB dependencies for 3,000 property records. |
-| **Keyword Search** | Scikit-learn TF-IDF Vectorizer | Elasticsearch / Meilisearch | Lightweight, embedded within the Python process, zero operational overhead for hybrid retrieval. |
-| **Supervised ML Regressor** | Gradient Boosting Regressor | Deep Neural Net / Random Forest | Gradient Boosting achieved the highest test R² (0.9031) and lowest MAPE (8.46%) on tabular housing data. |
-| **LLM Reasoning & Judge** | Dual-Mode LLM (OpenAI `gpt-4o-mini` with Deterministic Rule-Based Fallback) | Cloud LLM Only | Ensures core valuation/orchestration endpoints operate offline without crashing, while supporting live LLMs when `OPENAI_API_KEY` is configured. |
-| **Evaluation Framework** | DeepEval (v4.2.8 pinned) | RAGAS / Manual Evaluation | Industry-standard evaluation framework for measuring Faithfulness, Answer Relevancy, Contextual Precision, and Recall. In offline mode without an API key, returns `evaluation_mode = "offline_no_llm"` and marks LLM metrics as skipped rather than fabricating canned scores. |
+| **Programming Language** | Python 3.10+ (tested on Python 3.13) | Go / TypeScript | Native ecosystem support for Scikit-learn, PyTorch, Sentence-Transformers, DeepEval, and FastAPI. |
+| **Backend API** | FastAPI + Uvicorn | Flask / Django | Asynchronous high-throughput, native Pydantic validation, and automatic OpenAPI schema generation. |
+| **Frontend UI** | React 18.3.1 + Vite 5.4.11 | Streamlit | Production-grade single-page application with responsive layout, accessible tab navigation (7 tabs), persistent state, dark mode, and zero page reloads. Streamlit retained as legacy prototype only. |
+| **Embedding Model** | `all-MiniLM-L6-v2` | OpenAI `text-embedding-3-small` | 384-dimensional dense vectors with local sub-millisecond inference; zero recurring API expenses or network latency. |
+| **Vector Store** | In-Memory NumPy Cosine Dot-Product Index | Pinecone / Milvus / Chroma | With 10,000 records, an in-memory normalized NumPy matrix (`embeddings.npy`, 15.3 MB) provides sub-5ms cosine retrieval with zero database server overhead or external network calls. |
+| **Lexical Keyword Search** | Scikit-learn `TfidfVectorizer` | Elasticsearch / Meilisearch | Embedded directly in the application runtime; evaluates full candidate sets without hosting separate search clusters. |
+| **Supervised ML Regressor** | `GradientBoostingRegressor` | Random Forest / MLP | Outperformed baseline Random Forest on real test evaluation ($R^2 = 0.9198$ vs. $0.9031$), offering lower RMSE (\$25,361.84 vs. \$27,870.39) and robust residual-based prediction intervals. |
+| **LLM & Reasoning** | Dual-Mode LLM (`gpt-4o-mini` with Deterministic Fallbacks) | Cloud-Only LLM | Guarantees all core valuation and audit endpoints operate completely offline without failing when API keys are absent. |
+| **Evaluation Framework** | DeepEval (v4.2.8 pinned) | RAGAS / Manual Review | Native support for LLMTestCase, Faithfulness, Relevancy, Precision, and Recall. Clarification: RAGAS was evaluated but DeepEval was selected for its robust local orchestration and test case abstractions. |
 
 ---
 
-## 4. Key Assumptions (Interpretation of Ambiguities)
+## 4. Key Assumptions & Interpretations
 
-1. **Dataset Key Fields Mapping**: The specification lists 15 key dataset fields (`SalePrice, OverallQual, OverallCond, GrLivArea, TotalBsmtSF, GarageCars, GarageArea, YearBuilt, YearRemodAdd, FullBath, BedroomAbvGr, TotRmsAbvGrd, Neighborhood, LotArea, GarageYrBlt`). In OpenML dataset 43926, column names use underscore notation (`Sale_Price`, `Overall_Qual`, etc.), and quality ratings are ordinal strings (`Average`, `Good`, `Excellent`). **Assumption**: We map all fields to standard camelCase/snake_case aliases and convert ordinal qualities to standardized 1-10 integer scales.
-2. **Evaluation Modes (Honest Offline vs Live LLM)**: Without a third-party `OPENAI_API_KEY`, DeepEval's LLM-as-judge metrics cannot run real evaluations. **Assumption**: When `llm_client.is_live` is `False`, the system does NOT fabricate metric results or return canned 0.95+ verdicts. Instead, it explicitly returns `evaluation_mode = "offline_no_llm"`, `benchmark_status = "NOT_EVALUATED"`, and `SKIPPED_NO_LLM_KEY` (with null scores) for the four DeepEval metrics. Rule-based valuation accuracy is computed in both modes. Live scores are reported only when an API key is present.
-3. **Reconciled Valuation Methodology**: Basic valuation uses comp-adjusted median and PPSF weighting, while Advanced adds supervised ML prediction. **Assumption**: The multi-agent orchestrator synthesizes both signals (50% comp-adjusted FMV + 50% ML point estimate) and applies a risk-based haircut (2-4%) if the property exhibits severe deferred maintenance or volatility.
-4. **Feedback Loop Calibration Factor & Drift Prevention**: In successive feedback submissions where the recommended value was already calibrated, measuring error directly on the calibrated price causes the factor to cancel itself and drift back to 1.0. **Assumption**: Each feedback record stores `applied_calibration_factor` (default 1.0), and error/bias are evaluated against `uncalibrated_value = recommended_value / applied_calibration_factor`, ensuring the calibration factor reflects true model bias and remains stable across iterations.
-5. **Zero-Match Filter Handling**: When metadata filters match 0 properties, falling back to all properties is misleading. **Assumption**: The vector store and hybrid retriever return an empty list (`[]`), and downstream valuation agents gracefully handle zero comps using ML-only synthesis.
-6. **Optional Key-Field Inputs**: `total_rooms` (`TotRmsAbvGrd`) and `garage_yr_blt` (`GarageYrBlt`) are accepted as optional inputs across all schemas and validated via guardrails, replacing hardcoded defaults in the ML model.
+1. **Dataset Structure & Synthetic Augmentation**:
+   - The underlying dataset contains 10,000 records: 2,930 real sales (Dean De Cock, 2011; OpenML 43926) and 7,070 synthetic sales generated via Gaussian Copula with empirical marginals and novelty distance filtering.
+   - **Honest Test Split**: The test set ($n = 586$) strictly contains 20% of the real records (`random_state=42`). Synthetic records are used only in training ($n = 9,414$) and are never present in the test set.
+   - **Comparable Isolation**: Comparable property searches exclude synthetic rows by default (`include_synthetic=False`) so appraisers and clients see only verified historical transactions.
+2. **Dynamic Comparable Search Widening**:
+   - When a subject property has fewer than 3 comps in its target neighborhood that match within $\pm 25\%$ living area and $\pm 1$ quality grade, the search automatically widens city-wide (relaxing to $\pm 40\%$ and $\pm 2$ if needed) to ensure representative comps.
+3. **Dynamic Valuation Reconciliation (`comp_fit`)**:
+   - Rather than an arbitrary 50/50 split, the system dynamically weights the comparable median price and the ML statistical estimate based on `comp_fit`:
+     $$\text{comp\_fit} = \frac{\text{matching comps}}{\text{comps found}} \times \min\left(1, \frac{\text{comps found}}{5}\right)$$
+     $$\text{comp\_weight} = \text{clip}(0.5 \times \text{comp\_fit} + 0.1, 0.1, 0.5)$$
+     $$\text{ml\_weight} = 1.0 - \text{comp\_weight}$$
+   - When comp evidence is strong and closely matching, comp weight reaches 50%. When local comps are sparse or divergent, ML weight increases up to 90%.
+4. **Feedback Calibration Drift Prevention**:
+   - Successive feedback submissions evaluate error and bias against uncalibrated estimates ($\text{recommended} / \text{applied\_factor}$), preventing compounding feedback loops from causing calibration drift.
+5. **Strict Filter Handling**:
+   - If user-provided metadata filters match zero properties, the retriever returns an empty list (`[]`) rather than falling back to unconstrained properties. Downstream valuation gracefully defaults to ML prediction.
 
 ---
 
-## 5. Retrieval Strategy & Comparable-Property Prioritization
+## 5. Retrieval Strategy & Comparable Prioritization
 
 ### 5.1 Searchable Document Construction
-Each property record is transformed into a rich semantic text document:
+Each property row is converted into a rich textual document without splitting (1 property = 1 document):
 ```
 Property PROP-0001 located in North Ames neighborhood. Living area: 1656 sq ft, Lot area: 31770 sq ft. Accommodations: 3 bedrooms, 1 full bathrooms, 7 total rooms above ground. Basement: 1080 sq ft. Garage: 2 cars (528 sq ft). Built in 1960, remodeled in 1960. Overall quality rating: 6/10, overall condition rating: 5/10. Historical sale price: $215,000 ($129.83/sq ft).
 ```
 
-### 5.2 True Hybrid Search Formulation
-True hybrid retrieval runs lexical TF-IDF keyword scoring over the **full metadata-filtered candidate set** (not merely the top-k*4 semantic subset). This guarantees properties with strong lexical relevance but modest initial vector cosine similarity are retained before score fusion:
+### 5.2 True Hybrid Fusion Formula
+Dense semantic cosine scores and TF-IDF lexical scores are computed over the full candidate pool and fused via convex combination:
 $$\text{Score}_{\text{hybrid}} = \alpha \cdot \text{Score}_{\text{semantic}} + (1 - \alpha) \cdot \text{Score}_{\text{keyword}}$$
-Default $\alpha = 0.55$.
+where $\alpha = 0.55$ (55% dense semantic similarity, 45% lexical keyword similarity).
 
-### 5.3 Multi-Factor Comparable-Property Prioritization
-Candidate properties from the fused union pool are prioritized using a weighted comparability formula:
-- **Location Alignment (30%)**: Exact neighborhood match gets 1.0, adjacent gets 0.8, divergent gets 0.35.
-- **Living Area Proximity (25%)**: $1.0 - \min\left(\frac{|\text{SqFt}_{\text{comp}} - \text{SqFt}_{\text{target}}|}{\max(\text{SqFt}_{\text{target}}, 500)}, 1.0\right)$
-- **Overall Quality Proximity (20%)**: $1.0 - \frac{|\text{Qual}_{\text{comp}} - \text{Qual}_{\text{target}}|}{9.0}$
-- **Age / Era Proximity (15%)**: $1.0 - \frac{|\text{Year}_{\text{comp}} - \text{Year}_{\text{target}}|}{50.0}$
-- **Bed / Bath Configuration (10%)**: Room count delta penalty.
-
-Composite Prioritized Score:
+### 5.3 Comparable Prioritization Formula
+Candidates from the hybrid retrieval pool are ranked by a composite score blending hybrid similarity and physical property proximity:
 $$\text{Score}_{\text{prioritized}} = 0.50 \cdot \text{Score}_{\text{hybrid}} + 0.50 \cdot \text{Score}_{\text{comparability}}$$
 
----
-
-## 6. Multi-Agent Design & Workflow
-
-1. **Guardrail Agent**: Enforces physical boundaries on every single property feature ($100 \le \text{SqFt} \le 15,000$, $0 \le \text{Beds} \le 15$, $0 \le \text{Baths} \le 10$, $1850 \le \text{Year} \le 2026$, $1 \le \text{Qual, Cond} \le 10$, $0 \le \text{GarageCars} \le 6$, $1 \le \text{TotalRooms} \le 30$, $1850 \le \text{GarageYrBlt} \le 2026$) and detects prompt injection / off-topic queries. Rejects invalid requests with HTTP 400.
-2. **True Hybrid Retrieval & Strict Filter Handling**: Executes semantic + lexical search over the full candidate pool. If metadata filters match nothing, the retriever respects the filter and returns an empty list (`[]`) rather than falling back to unconstrained candidates.
-3. **Classification Agent**: Categorizes properties into Market Tiers (Luxury, Upper-Middle, Mid-Market, Affordable), Typologies (Executive Estate, Suburban Single-Family, Ranch, Starter), Preservation Grades (A through D), and Investment Profiles.
-4. **Valuation Agent**: Computes empirical comp-median, mean, and size-weighted fair market value with quality adjustments ($5\%$ per grade delta). Generates narrative explanation by invoking `llm_client` when an API key is present, preserving a deterministic rule-based explanation as fallback.
-5. **Predictive ML Service**: Runs a trained Gradient Boosting regressor with 90% prediction intervals ($R^2 = 0.9031$). Accepts `total_rooms` and `garage_yr_blt` as direct inputs.
-6. **Risk Assessment Agent**: Computes a 0-100 property risk index across Physical Age Depreciation (30%), Quality-Condition Discrepancy (25%), Neighborhood Price Volatility (25%), and Layout Obsolescence (20%).
-7. **Feature & Location Impact Service**: Calculates neighborhood location premiums relative to the city baseline median ($160,000) and runs what-if renovation scenarios.
-8. **Synthesis & Calibration Engine**: Reconciles empirical and statistical valuations, then applies the continuous improvement `calibration_factor` derived from uncalibrated historical appraisal errors to eliminate pricing bias.
-9. **LLM-as-Judge Agent**: Audits the dossier against market comps and ML predictions, calling `llm_client` when an API key is present and falling back to a deterministic multi-criterion audit rubric, issuing formal verdicts (`APPROVED`, `FLAGGED_OVERVALUED`, `FLAGGED_UNDERVALUED`, `NEEDS_REVIEW`). Rejects invalid inputs with HTTP 400.
+Where physical comparability is computed across 5 weighted dimensions:
+- **Location Proximity (30%)**: 1.0 for same neighborhood, 0.8 for adjacent, 0.35 for other.
+- **Living Area Proximity (25%)**: $1.0 - \min(|\text{SqFt}_{\text{comp}} - \text{SqFt}_{\text{target}}| / \max(\text{SqFt}_{\text{target}}, 500), 1.0)$
+- **Overall Quality Proximity (20%)**: $1.0 - |\text{Qual}_{\text{comp}} - \text{Qual}_{\text{target}}| / 9.0$
+- **Age / Era Proximity (15%)**: $1.0 - |\text{Year}_{\text{comp}} - \text{Year}_{\text{target}}| / 50.0$
+- **Room Count Proximity (10%)**: Delta penalty based on total bedroom and bathroom differences.
 
 ---
 
-## 7. Continuous Improvement Feedback Loop & Reconciliation Calibration
-Appraisers and real estate professionals submit verified transaction values, ratings, and optional `applied_calibration_factor`. The system computes:
-- Mean Absolute Error (MAE) in dollars
-- Mean Absolute Percentage Error (MAPE)
-- Systematic Bias Offset:
-$$\text{Uncalibrated} = \frac{\text{Recommended}}{\text{AppliedCalibrationFactor}}$$
-$$\text{Bias}_{\%} = \frac{1}{N} \sum \frac{\text{Actual} - \text{Uncalibrated}}{\text{Uncalibrated}} \times 100$$
-- Calibration Multiplier: $\text{CalibrationFactor} = 1.0 + \frac{\text{Bias}_{\%}}{100}$
+## 6. Multi-Agent System Architecture
 
-The orchestrator directly applies $\text{CalibrationFactor}$ to calibrate the final reconciled fair market value in real-time.
+1. **Guardrail Agent**: Enforces strict physical parameter constraints (14 fields: living area 100–15,000 sq ft, quality 1–10, etc.) and detects prompt injection attacks. Rejects invalid requests with HTTP 400.
+2. **Classification Agent**: Segments properties into Market Tiers (Luxury, Upper-Middle, Mid-Market, Affordable), Typologies (Executive Estate, Suburban Single-Family, Townhome, Starter), and Preservation Grades (Grade A to D).
+3. **Valuation Agent**: Computes comparable price statistics (median, mean, size-adjusted PPSF fair value) and produces a plain-English explanation of valuation rationale.
+4. **Predictive ML Regressor**: Generates statistical point estimates and 90% empirical prediction intervals using the trained `GradientBoostingRegressor`.
+5. **Property Value Risk Agent**: Scores risk (0–100) across physical depreciation (30%), quality-condition gap (25%), neighborhood price volatility (25%), and layout liquidity (20%).
+6. **Feature & Location Impact Agent**: Analyzes neighborhood price premiums relative to city baselines and performs what-if renovation simulations.
+7. **Synthesis & Calibration Engine**: Applies dynamic `comp_fit` weighting between comps and ML prediction, incorporates feedback calibration factors, and scales prediction intervals.
+8. **LLM-as-Judge Auditor**: Audits reconciled values against comp medians and ML bounds, producing structured verdicts (`APPROVED`, `FLAGGED_OVERVALUED`, `FLAGGED_UNDERVALUED`, `NEEDS_REVIEW`) and plain-English recommendations.
 
 ---
 
-## 8. Evaluation Strategy & Quality Benchmarks (DeepEval Integration)
-Using real metric objects from DeepEval (v4.2.8 pinned) and `LLMTestCase`:
-- **FaithfulnessMetric**: Measures factual alignment against retrieved comps (`measure(test_case)`).
-- **AnswerRelevancyMetric**: Measures semantic adherence to target property parameters and query.
-- **ContextualPrecisionMetric**: Evaluates if the most relevant comps are prioritized at rank 1.
-- **ContextualRecallMetric**: Evaluates complete coverage of valuation dimensions.
-- **Valuation Accuracy**: Proximity of the calibrated FMV to validated historical bounds.
+## 7. Continuous Learning & Feedback Loop
 
-**Dual-Mode Operation**:
-- In **offline mode** (`evaluation_mode = "offline_no_llm"`), no API key is present. The four LLM-backed metrics return status `SKIPPED_NO_LLM_KEY` with null scores, and `benchmark_status = "NOT_EVALUATED"`. Valuation accuracy is computed deterministically.
-- In **live mode** (`evaluation_mode = "live_llm_judge"`), real DeepEval metric calculations execute via the configured LLM and compute live pass rates and scores.
+The platform includes a persistent feedback store (`data/sample_data/feedback.json`) that logs verified transactions:
+1. Appraisers submit verified sales prices, star ratings, and optional notes.
+2. The service computes Mean Absolute Error (MAE) and Mean Absolute Percentage Error (MAPE).
+3. Systematic pricing bias is evaluated against uncalibrated estimates:
+   $$\text{Uncalibrated} = \frac{\text{Recommended}}{\text{AppliedCalibrationFactor}}$$
+   $$\text{Bias}_{\%} = \frac{1}{N} \sum_{i=1}^N \frac{\text{Actual}_i - \text{Uncalibrated}_i}{\text{Uncalibrated}_i} \times 100$$
+4. The calibration factor is computed as:
+   $$\text{CalibrationFactor} = 1.0 + \frac{\text{Bias}_{\%}}{100}$$
+5. The orchestrator applies this factor directly during valuation reconciliation to eliminate systematic drift.
+
+---
+
+## 8. Evaluation Framework (DeepEval Quality Benchmark)
+
+DeepEval (v4.2.8) is integrated into `src/services/evaluation_service.py` with 5 benchmark scenarios (`EVAL-01` through `EVAL-05`) evaluating end-to-end quality:
+- **FaithfulnessMetric**: Assesses whether generated narratives align factually with retrieved comps.
+- **AnswerRelevancyMetric**: Assesses whether generated outputs answer the specific valuation query.
+- **ContextualPrecisionMetric**: Assesses whether the most relevant historical comps are ranked highest.
+- **ContextualRecallMetric**: Assesses whether all critical valuation dimensions are covered.
+- **Valuation Accuracy**: Measures whether reconciled FMV falls within historical ground-truth bounds.
+
+**Honest Dual-Mode Operation**:
+- In **offline mode** (no API key configured), DeepEval returns `evaluation_mode = "offline_no_llm"` and marks LLM-backed metrics as skipped (`SKIPPED_NO_LLM_KEY`), while deterministically computing valuation accuracy.
+- In **live mode** (`OPENAI_API_KEY` configured), real metric calculations execute via the configured LLM, returning measured scores (100% pass rate on live test run).
+
+---
+
+## 9. Frontend Architecture (React 18 + Vite)
+
+The user interface (`frontend/`) is a modular, high-performance React 18 single-page application:
+- **Sidebar Form**: Shared property input form (28 Ames neighborhoods, living area, lot area, bedrooms, full baths, year built, basement sq ft, garage cars, condition 1–10, quality 1–10, optional notes).
+- **7 Dedicated Tabs**:
+  1. *Valuation*: Headline reconciled price, 90% confidence range, clean range bar, 2-sentence plain-English explanation, and quick audit button.
+  2. *Comparable sales*: Real historical transactions table, similarity scores, and physical comparability details.
+  3. *ML prediction*: Gradient Boosting point estimate, 90% prediction interval, and top feature drivers.
+  4. *What-if*: Interactive renovation simulator (room additions, finish upgrades, garage expansions).
+  5. *Risk and audit*: Multi-factor risk breakdown (0–100 score) and LLM judge audit verdict.
+  6. *Feedback*: Appraiser rating submission and live bias calibration monitoring.
+  7. *Evaluation*: Live DeepEval benchmark runner and scenario breakdown.
+- **UX & Accessibility**: Dark/light theme toggle with persistent storage, accessible keyboard navigation (`aria-selected`), and out-of-date indicators when form parameters change.

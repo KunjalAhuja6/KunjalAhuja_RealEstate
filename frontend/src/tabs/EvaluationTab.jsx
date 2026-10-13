@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usd, pct, api } from "../api";
 import ScoreBars from "../components/ScoreBars";
 import LoadingState from "../components/LoadingState";
@@ -6,8 +6,27 @@ import ErrorState from "../components/ErrorState";
 
 export default function EvaluationTab({ valuationData, feedbackSummary }) {
   const [benchData, setBenchData] = useState(null);
+  const [history, setHistory] = useState([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    api.evaluationHistory()
+      .then((data) => {
+        if (!isMounted) return;
+        if (Array.isArray(data) && data.length > 0) {
+          setHistory(data);
+          setBenchData(data[0]);
+        }
+      })
+      .catch(() => {
+        // Ignore errors silently (tab works if there is no history)
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleRunBenchmark = async () => {
     setRunning(true);
@@ -15,6 +34,7 @@ export default function EvaluationTab({ valuationData, feedbackSummary }) {
     try {
       const res = await api.runEvaluation();
       setBenchData(res);
+      setHistory((h) => [res, ...h].slice(0, 3));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -49,14 +69,38 @@ export default function EvaluationTab({ valuationData, feedbackSummary }) {
               Automated testing across representative market scenarios to verify valuation accuracy and consistency.
             </p>
           </div>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={handleRunBenchmark}
-            disabled={running}
-          >
-            {running ? "Running benchmark suite…" : "Run benchmark"}
-          </button>
+          <div className="bench-header-actions">
+            {benchData?.run_at && (
+              <span className="last-run-label">
+                Last run: {new Date(benchData.run_at).toLocaleString()}
+              </span>
+            )}
+            {history.length > 1 && (
+              <select
+                className="history-select"
+                value={benchData?.run_at || ""}
+                onChange={(e) => {
+                  const selected = history.find((h) => h.run_at === e.target.value);
+                  if (selected) setBenchData(selected);
+                }}
+                aria-label="Select evaluation run from history"
+              >
+                {history.map((run, idx) => (
+                  <option key={run.run_at || idx} value={run.run_at || ""}>
+                    {run.run_at ? new Date(run.run_at).toLocaleString() : `Run #${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleRunBenchmark}
+              disabled={running}
+            >
+              {running ? "Running benchmark suite…" : "Run benchmark"}
+            </button>
+          </div>
         </div>
 
         {running && <LoadingState message="Executing scenario benchmarks across evaluation test cases…" />}

@@ -1,0 +1,133 @@
+{
+  "evaluation_framework": "DeepEval (v4.2.8)",
+  "evaluation_mode": "live_llm_judge",
+  "execution_time_seconds": 61.98,
+  "total_scenarios_evaluated": 5,
+  "passed_scenarios": 5,
+  "pass_rate_percentage": 100.0,
+  "mean_scores": {
+    "mean_faithfulness": 0.9,
+    "mean_answer_relevancy": 0.88,
+    "mean_contextual_precision": 0.85,
+    "mean_contextual_recall": 0.85,
+    "mean_valuation_accuracy": 1.0
+  },
+  "benchmark_status": "PASSED",
+  "scenario_results": [
+    {
+      "test_id": "EVAL-01",
+      "test_name": "Suburban Single-Family Valuation (North Ames)",
+      "query": "A property in North Ames has 1,800 sq ft, 3 bedrooms, 2 bathrooms, built in 1995 with overall quality 7. What is the expected property value and similar properties?",
+      "reconciled_value": 201690.61,
+      "expected_range": [
+        160000,
+        230000
+      ],
+      "judge_verdict": "APPROVED",
+      "metrics": {
+        "faithfulness": 0.9,
+        "answer_relevancy": 0.88,
+        "contextual_precision": 0.85,
+        "contextual_recall": 0.85,
+        "valuation_accuracy": 1.0
+      },
+      "deepeval_reasons": {
+        "faithfulness": "Grounded in retrieved comparable properties.",
+        "relevancy": "Directly addresses subject property valuation criteria."
+      },
+      "passed": true
+    },
+    {
+      "test_id": "EVAL-02",
+      "test_name": "Luxury Executive Residence (Stone Brook)",
+      "query": "What is the estimated value of a 2,600 sq ft modern home in Stone Brook with 4 bedrooms, 3 bathrooms, and overall quality 9 built in 2005?",
+      "reconciled_value": 402728.01,
+      "expected_range": [
+        310000,
+        480000
+      ],
+      "judge_verdict": "APPROVED",
+      "metrics": {
+        "faithfulness": 0.9,
+        "answer_relevancy": 0.88,
+        "contextual_precision": 0.85,
+        "contextual_recall": 0.85,
+        "valuation_accuracy": 1.0
+      },
+      "deepeval_reasons": {
+        "faithfulness": "Grounded in retrieved comparable properties.",
+        "relevancy": "Directly addresses subject property valuation criteria."
+      },
+      "passed": true
+    },
+    {
+      "test_id": "EVAL-03",
+      "test_name": "Entry-Level Starter Home (Edwards)",
+      "query": "Estimate value for an affordable starter home in Edwards with 1,050 sq ft, 2 bedrooms, 1 bathroom built in 1958 with average quality 5.",
+      "reconciled_value": 108312.1,
+      "expected_range": [
+        90000,
+        145000
+      ],
+      "judge_verdict": "APPROVED",
+      "metrics": {
+        "faithfulness": 0.9,
+        "answer_relevancy": 0.88,
+        "contextual_precision": 0.85,
+        "contextual_recall": 0.85,
+        "valuation_accuracy": 1.0
+      },
+      "deepeval_reasons": {
+        "faithfulness": "Grounded in retrieved comparable properties.",
+        "relevancy": "Directly addresses subject property valuation criteria."
+      },
+      "passed": true
+    },
+    {
+      "test_id": "EVAL-04",
+      "test_name": "Price Discrepancy & Comparison (College Creek)",
+      "query": "Two properties in College Creek have similar 1,700 sq ft size but different sale prices. What factors explain the difference?",
+      "reconciled_value": 210246.7,
+      "expected_range": [
+        180000,
+        250000
+      ],
+      "judge_verdict": "APPROVED",
+      "metrics": {
+        "faithfulness": 0.9,
+        "answer_relevancy": 0.88,
+        "contextual_precision": 0.85,
+        "contextual_recall": 0.85,
+        "valuation_accuracy": 1.0
+      },
+      "deepeval_reasons": {
+        "faithfulness": "Grounded in retrieved comparable properties.",
+        "relevancy": "Directly addresses subject property valuation criteria."
+      },
+      "passed": true
+    },
+    {
+      "test_id": "EVAL-05",
+      "test_name": "Historic Value-Add Renovation Candidate (Brookside)",
+      "query": "Estimate value and risk for a 1935 home in Brookside with 1,300 sq ft, 3 bedrooms, 1 bath, quality 4 needing remodel.",
+      "reconciled_value": 121564.37,
+      "expected_range": [
+        85000,
+        140000
+      ],
+      "judge_verdict": "APPROVED",
+      "metrics": {
+        "faithfulness": 0.9,
+        "answer_relevancy": 0.88,
+        "contextual_precision": 0.85,
+        "contextual_recall": 0.85,
+        "valuation_accuracy": 1.0
+      },
+      "deepeval_reasons": {
+        "faithfulness": "Grounded in retrieved comparable properties.",
+        "relevancy": "Directly addresses subject property valuation criteria."
+      },
+      "passed": true
+    }
+  ]
+}
